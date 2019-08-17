@@ -5,11 +5,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebSession;
+import reactor.core.publisher.Mono;
 
 import java.security.Principal;
 import java.util.Collection;
@@ -30,8 +33,13 @@ public class WebResource {
     @GetMapping("/index")
     public String index(Principal principal){
         String username = principal!=null?principal.getName():"null";
+        Mono<SecurityContext> context = ReactiveSecurityContextHolder.getContext();
+        context.subscribe(e->{
+            Collection<? extends GrantedAuthority> authorities = e.getAuthentication().getAuthorities();
+            System.out.println(authorities);
+        });
         //Authentication auths = SecurityContextHolder.getContext().getAuthentication();
-       // Collection<? extends GrantedAuthority> authorities = auths.getAuthorities();
+        //Collection<? extends GrantedAuthority> authorities = auths.getAuthorities();
         return "<!DOCTYPE html>\n"
                 + "<html lang=\"en\">\n"
                 + "<head>\n"
