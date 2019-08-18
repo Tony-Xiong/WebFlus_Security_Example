@@ -30,9 +30,10 @@ import java.util.stream.Collector;
 /**
  * Created by xiongyizhou on 2019/8/16 15:33
  * E-mail: xiongyizhou@powerpms.com
- *
+ * Controller
  * @author xiongyizhou
  */
+
 @Controller
 @Log
 public class WebResource {
