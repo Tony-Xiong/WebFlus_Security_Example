@@ -22,7 +22,7 @@ import java.util.Set;
 /**
  * Created by xiongyizhou on 2019/8/15 10:57
  * E-mail: xiongyizhou@powerpms.com
- *
+ * implement ReactiveUserDetailsService to find user in db
  * @author xiongyizhou
  */
 @Service("userDetailsService")
