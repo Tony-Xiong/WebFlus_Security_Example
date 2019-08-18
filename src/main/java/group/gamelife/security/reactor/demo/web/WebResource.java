@@ -1,21 +1,31 @@
 package group.gamelife.security.reactor.demo.web;
 
 import lombok.extern.java.Log;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.reactive.result.view.Rendering;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebSession;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.stream.Collector;
 
 /**
  * Created by xiongyizhou on 2019/8/16 15:33
@@ -23,24 +33,24 @@ import java.util.Collection;
  *
  * @author xiongyizhou
  */
-@RestController
+@Controller
 @Log
 public class WebResource {
 
     @GetMapping("")
-    public void defaultPage(){}
+    public Rendering defaultPage(ServerWebExchange webExchange){
+        return Rendering.redirectTo("/index").build();
+    }
 
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/index")
-    public String index(Principal principal){
+    @ResponseBody
+    public Mono<ResponseEntity<String>> index(Principal principal){
         String username = principal!=null?principal.getName():"null";
-        Mono<SecurityContext> context = ReactiveSecurityContextHolder.getContext();
-        context.subscribe(e->{
-            Collection<? extends GrantedAuthority> authorities = e.getAuthentication().getAuthorities();
-            System.out.println(authorities);
-        });
-        //Authentication auths = SecurityContextHolder.getContext().getAuthentication();
-        //Collection<? extends GrantedAuthority> authorities = auths.getAuthorities();
-        return "<!DOCTYPE html>\n"
+        Mono<Collection<? extends GrantedAuthority>> authorities = ReactiveSecurityContextHolder.getContext()
+                .map(SecurityContext::getAuthentication)
+                .map(Authentication::getAuthorities).flatMap(Mono::just);
+        return authorities.map(temp->ResponseEntity.ok("<!DOCTYPE html>\n"
                 + "<html lang=\"en\">\n"
                 + "<head>\n"
                 + "    <meta charset=\"UTF-8\">\n"
@@ -55,16 +65,18 @@ public class WebResource {
                 + username
                 + "</h4>\n"
                 + "<p>"
-                + ""
+                + temp
                 + "</p>"
                 + "<form action=\"/logout\" method=\"POST\">\n"
                 + "    <button type=\"submit\" >logout</button>\n"
                 + "</form>"
                 + "</body>\n"
-                + "</html>";
+                + "</html>")
+        );
     }
 
     @GetMapping("/login")
+    @ResponseBody
     public String loginPage(){
         return "<!DOCTYPE html>\n"
                 + "<html lang=\"en\">\n"
@@ -87,10 +99,12 @@ public class WebResource {
                 + "</html>";
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/admin")
-    public ResponseEntity<String> adminPage(){
+    @ResponseBody
+    public Mono<ResponseEntity<String>> adminPage(){
 
-        return ResponseEntity.ok("<!DOCTYPE html>\n"
+        return Mono.just(ResponseEntity.ok("<!DOCTYPE html>\n"
                 + "<html lang=\"en\">\n"
                 + "<head>\n"
                 + "    <meta charset=\"UTF-8\">\n"
@@ -102,6 +116,6 @@ public class WebResource {
                 + "<a href=\"/index\">return</a>"
                 + "\n"
                 + "</body>\n"
-                + "</html>");
+                + "</html>"));
     }
 }

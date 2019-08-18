@@ -9,6 +9,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
+import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.userdetails.*;
@@ -18,6 +19,7 @@ import org.springframework.security.web.server.header.XFrameOptionsServerHttpHea
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
+import org.springframework.http.server.reactive.ServerHttpResponseDecorator;
 
 import java.net.URI;
 
@@ -28,6 +30,7 @@ import java.net.URI;
  * @author xiongyizhou
  */
 @EnableWebFluxSecurity
+@EnableReactiveMethodSecurity
 @Configuration
 @Log
 public class WebFluxSecurityConfig {
@@ -48,42 +51,46 @@ public class WebFluxSecurityConfig {
     }
 
     @Bean
-    public SecurityWebFilterChain springSecurityWebFilterChain(ServerHttpSecurity http){
+    public SecurityWebFilterChain springSecurityWebFilterChain(ServerHttpSecurity http) {
 
-    http.formLogin()
-        .loginPage("/login")
-        .authenticationSuccessHandler((exchange, authentication) -> {
-            log.info("登陆成功！！！！！！！！！！！！！！");
-            ServerHttpResponse res = exchange.getExchange().getResponse();
-            res.setStatusCode(HttpStatus.PERMANENT_REDIRECT);
-            return exchange.getChain().filter(exchange.getExchange().mutate().request(req->req.path("/index").method(HttpMethod.GET).build()).response(res).build());
-            }).authenticationFailureHandler((exchange,exception) -> {
-                log.info("出错啦！！！！！！！");
-                ServerHttpResponse res = exchange.getExchange().getResponse();
-                res.setStatusCode(HttpStatus.PERMANENT_REDIRECT);
-                return exchange.getChain().filter(exchange.getExchange().mutate().request(req->req.method(HttpMethod.GET).path("/login").build()).response(res).build());
-            })
-            .and()
-            .logout()
-            .logoutUrl("/logout")
-            .logoutSuccessHandler((webFilterExchange,authentication)-> {
-                log.info("登出！！！！！！！！");
-                ServerHttpResponse res = webFilterExchange.getExchange().getResponse();
-                res.setStatusCode(HttpStatus.PERMANENT_REDIRECT);
-                return webFilterExchange.getChain().filter(webFilterExchange.getExchange().mutate().request(req->req.method(HttpMethod.GET).path("/login").build()).response(res).build());
-            })
-            .and()
-            .authorizeExchange()
-            .pathMatchers("/static/**","/h2/**","/login","/favicon.ico")
-            .permitAll()
-            .anyExchange()
-            .authenticated()
-            .and()
-            .csrf()
-            .disable()
-            .headers()
-            .frameOptions()
-            .mode(XFrameOptionsServerHttpHeadersWriter.Mode.SAMEORIGIN);
+        http.formLogin()
+                .loginPage("/login")
+                .authenticationSuccessHandler((exchange, authentication) -> {
+                    log.info("登陆成功！！！！！！！！！！！！！！");
+                    ServerHttpResponse res = new ServerHttpResponseDecorator(exchange.getExchange().getResponse());
+                    res.getHeaders().add("Location", "/index");
+                    res.setStatusCode(HttpStatus.FOUND);
+                    return exchange.getChain().filter(exchange.getExchange().mutate().request(req -> req.method(HttpMethod.GET).build()).response(res).build());
+                })
+                .authenticationFailureHandler((exchange, exception) -> {
+                    log.info("出错啦！！！！！！！");
+                    ServerHttpResponse res = new ServerHttpResponseDecorator(exchange.getExchange().getResponse());
+                    res.getHeaders().add("Location", "/login");
+                    res.setStatusCode(HttpStatus.FOUND);
+                    return exchange.getChain().filter(exchange.getExchange().mutate().request(req -> req.method(HttpMethod.GET).build()).response(res).build());
+                })
+                .and()
+                .logout()
+                .logoutUrl("/logout")
+                .logoutSuccessHandler((webFilterExchange, authentication) -> {
+                    log.info("登出！！！！！！！！");
+                    ServerHttpResponse res = webFilterExchange.getExchange().getResponse();
+                    res.getHeaders().add("Location", "/login");
+                    res.setStatusCode(HttpStatus.FOUND);
+                    return webFilterExchange.getChain().filter(webFilterExchange.getExchange().mutate().response(res).build());
+                })
+                .and()
+                .authorizeExchange()
+                .pathMatchers("/static/**", "/h2/**", "/login", "/favicon.ico")
+                .permitAll()
+                .anyExchange()
+                .authenticated()
+                .and()
+                .csrf()
+                .disable()
+                .headers()
+                .frameOptions()
+                .mode(XFrameOptionsServerHttpHeadersWriter.Mode.SAMEORIGIN);
         return http.build();
     }
 
